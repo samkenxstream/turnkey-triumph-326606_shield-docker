@@ -14,4 +14,9 @@ agent: prep
 store: prep
 	docker build -t $(PROJECT)/store ./store
 
-.PHONY: prep core agent store
+live:
+	docker push $(PROJECT)/core
+	docker push $(PROJECT)/agent
+	docker push $(PROJECT)/store
+
+.PHONY: prep core agent store live
