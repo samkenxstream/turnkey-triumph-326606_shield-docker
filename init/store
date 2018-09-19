@@ -1,0 +1,53 @@
+#!/bin/sh
+set -e
+mkdir -p /store/etc
+mkdir -p /store/var
+mkdir -p /store/tmp
+mkdir -p /store/data
+
+if [ ! -f /store/etc ]; then
+  cat >/store/etc/nginx.conf <<EOF
+pid       /store/var/nginx.pid;
+error_log /store/var/error.log;
+events {}
+http {
+  default_type application/octet-stream;
+  log_format main '\$remote_addr - \$remote_user [\$time_local]  \$status '
+                  '"\$request" \$body_bytes_sent "\$http_referer" '
+                  '"\$http_user_agent" "\$http_x_forwarded_for"';
+  access_log /store/var/access.log;
+
+  client_body_temp_path /store/tmp/client;
+
+  sendfile   on;
+  tcp_nopush on;
+
+  server {
+    listen 80;
+    server_name  _;
+
+    location / {
+      auth_basic            "SHIELD WebDAV Store";
+      auth_basic_user_file  /store/etc/auth;
+
+      root                  /store/data;
+      autoindex             on;
+
+      dav_methods           PUT DELETE;
+      create_full_put_path  on;
+      dav_access            user:rw group:r;
+      client_max_body_size  2G;
+    }
+  }
+}
+EOF
+fi
+
+if [ ! -f /store/etc/auth ]; then
+  cat >/store/etc/auth <<EOF
+${WEBDAV_USERNAME:-shield}:{PLAIN}${WEBDAV_PASSWORD:-shield}
+EOF
+fi
+
+nginx -c /store/etc/nginx.conf
+tail -F /store/var/error.log /store/var/access.log

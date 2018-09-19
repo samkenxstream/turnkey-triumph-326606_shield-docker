@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+mkdir -p /shield/etc \
+         /shield/etc/id
+if [ ! -f /shield/etc/shield.conf ]; then
+  cat >/shield/etc/shield.conf <<EOF
+name: ${SHIELD_AGENT_NAME:-docker1}
+authorized_keys_file: /shield/etc/id/authorized_keys
+host_key_file:        /shield/etc/id/host_key
+listen_address:       0.0.0.0:5444
+plugin_paths:        [/plugins]
+
+registration:
+  url:      ${SHIELD_CORE_URL}
+  interval: ${SHIELD_AGENT_REG_INTERVAL:-15}
+EOF
+  if [ ! -f /shield/etc/id/host_key ]; then
+    ssh-keygen -t rsa -f /shield/etc/id/host_key -N ''
+  fi
+  if [ ! -f /shield/etc/id/authorized_keys ]; then
+    cat >/shield/etc/id/authorized_keys <<EOF
+${SHIELD_AGENT_AUTHKEY:-(missing)}
+EOF
+  fi
+fi
+exec /shield/bin/shield-agent -c /shield/etc/shield.conf ${SHIELD_AGENT_OPTIONS:-}

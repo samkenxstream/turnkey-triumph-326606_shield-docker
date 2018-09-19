@@ -1,0 +1,44 @@
+#!/bin/sh
+set -e
+mkdir -p /shield/etc
+mkdir -p /shield/data
+if [ ! -f /shield/etc/shieldd.conf ]; then
+  cat >/shield/etc/shieldd.conf <<EOF
+listen_addr:    0.0.0.0:80
+data_directory: /shield/data
+web_root:       /shield/web/htdocs
+
+private_key:     /shield/etc/key
+workers:         ${SHIELD_WORKERS:-4}
+max_timeout:     ${SHIELD_MAX_TIMEOUT:-10}
+slow_loop:       ${SHIELD_SLOW_LOOP:-300}
+fast_loop:       ${SHIELD_FAST_LOOP:-2}
+session_timeout: ${SHIELD_SESSION_TIMEOUT:-8}
+debug:           ${SHIELD_DEBUG:-no}
+
+env:             ${SHIELD_ENV_NAME:-dockerized}
+color:           ${SHIELD_ENV_COLOR:-yellow}
+motd: |
+  ${SHIELD_MOTD:-}
+
+failsafe:
+  username: ${SHIELD_FAILSAFE_USERNAME:-shield}
+  password: ${SHIELD_FAILSAFE_PASSWORD:-shield}
+EOF
+  if [ ! -f /shield/etc/key ]; then
+    ssh-keygen -t rsa -f /shield/etc/key -N ''
+  fi
+fi
+if [ ! -f /shield/etc/vault.conf ]; then
+  cat >/shield/etc/vault.conf <<EOF
+storage "file" { path = "/shield/data/vault" }
+disable_mlock = true
+listener "tcp" {
+  address = "127.0.0.1:8200"
+  tls_disable = true
+}
+EOF
+fi
+/shield/bin/vault server -config /shield/etc/vault.conf &
+/shield/bin/shield-schema -d /shield/data/shield.db
+exec /shield/bin/shieldd -c /shield/etc/shieldd.conf ${SHIELDD_OPTIONS:-}

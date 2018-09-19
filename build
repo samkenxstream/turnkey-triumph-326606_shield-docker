@@ -1,0 +1,31 @@
+#!/bin/bash
+set -eu
+
+rm -rf tmp
+mkdir -p bin tmp
+if [[ ! -f bin/vault ]]; then
+  echo ">> downloading vault 0.9.6 for 'core' image"
+  curl -Lo tmp/vault.zip https://releases.hashicorp.com/vault/0.9.6/vault_0.9.6_linux_amd64.zip
+  (cd bin; unzip ../tmp/vault.zip)
+  chmod 755 bin/vault
+fi
+rm -rf tmp
+
+mkdir -p core/assets/bin \
+         core/assets/web
+cp    bin/vault                              core/assets/bin
+cp    bin/shield-server-linux-amd64/daemon/* core/assets/bin
+cp -a bin/shield-server-linux-amd64/webui    core/assets/web/htdocs
+cp    init/core                              core/assets/init
+chmod 755 core/assets/init
+
+mkdir -p agent/assets/bin \
+         agent/assets/plugins
+cp    bin/shield-server-linux-amd64/agent/*   agent/assets/bin
+cp    bin/shield-server-linux-amd64/plugins/* agent/assets/plugins
+cp    init/agent                              agent/assets/init
+chmod 755 agent/assets/init
+
+mkdir -p store/assets
+cp init/store store/assets/init
+chmod 755 store/assets/init
